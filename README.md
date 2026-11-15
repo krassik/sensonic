@@ -5,4 +5,4 @@ Try
 3. Open image.png
 4. Explore with mouse cursor
 
-![Image description](./image.png)
+![Image description](./team.png)
