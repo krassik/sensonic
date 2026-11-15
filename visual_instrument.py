@@ -1,9 +1,13 @@
+
 import cv2
 import numpy as np
 import pandas as pd
 import time
 import math
+import colorsys
+
 from pythonosc.udp_client import SimpleUDPClient
+
 
 class VisualInstrument:
 
@@ -15,24 +19,41 @@ class VisualInstrument:
         blur_strength=12,
         min_distance=8,
         max_events=150,
-        synth = SimpleUDPClient("127.0.0.1", 9000)
+        synth=None
     ):
 
         # ------------------------------------------
-        # Synth configuration
+        # SYNTH CONFIGURATION
         # ------------------------------------------
 
-        self.synth = synth
+        self.synth = synth or SimpleUDPClient(
+            "127.0.0.1",
+            9000
+        )
 
         # ------------------------------------------
-        # Media configuration
+        # MUSIC CONFIGURATION
+        # ------------------------------------------
+
+        self.note_duration = 0.20
+        self.pixel_step = 8
+
+        # White pixel detection
+        self.white_saturation_threshold = 0.12
+        self.white_brightness_threshold = 0.90
+
+        # C major pentatonic scale
+        self.scale = [0, 2, 4, 7, 9]
+
+        # ------------------------------------------
+        # MEDIA CONFIGURATION
         # ------------------------------------------
 
         self.file_path = file_path
         self.cap = None
         self.is_video = False
-
         self.image = None
+
         self.fps = None
         self.total_frames = 1
         self.current_frame = 0
@@ -42,14 +63,14 @@ class VisualInstrument:
         self.width = None
 
         # ------------------------------------------
-        # Mouse tracking
+        # MOUSE TRACKING
         # ------------------------------------------
 
         self.last_position = None
         self.events = []
 
         # ------------------------------------------
-        # Visual effects
+        # VISUAL EFFECTS
         # ------------------------------------------
 
         self.blur_events = []
@@ -61,14 +82,13 @@ class VisualInstrument:
         self.max_events = max_events
 
         # ------------------------------------------
-        # Application configuration
+        # APPLICATION CONFIGURATION
         # ------------------------------------------
 
         self.window = "Visual Instrument"
         self.start_time = None
         self.running = False
 
-        # Load the selected media
         self.load_media()
 
     # ==================================================
@@ -91,8 +111,10 @@ class VisualInstrument:
             self.cap = cv2.VideoCapture(self.file_path)
 
             if not self.cap.isOpened():
+
                 self.cap.release()
                 self.cap = None
+
                 raise ValueError(
                     f"Unable to open file: {self.file_path}"
                 )
@@ -111,8 +133,10 @@ class VisualInstrument:
             ret, frame = self.cap.read()
 
             if not ret:
+
                 self.cap.release()
                 self.cap = None
+
                 raise ValueError("Unable to read video")
 
             self.image = frame
@@ -120,22 +144,108 @@ class VisualInstrument:
         self.height, self.width = self.image.shape[:2]
 
         print("Media loaded successfully")
-        print(f"Media type: {'Video' if self.is_video else 'Image'}")
+        print(
+            f"Media type: {'Video' if self.is_video else 'Image'}"
+        )
         print(f"Resolution: {self.width} x {self.height}")
 
         if self.is_video:
+
             print(f"FPS: {self.fps}")
             print(f"Total frames: {self.total_frames}")
 
     # ==================================================
-    # 2. MOUSE CALLBACK
+    # 2. COLOR TO MUSIC
+    # ==================================================
+
+    def color_to_note(self, r, g, b):
+        """
+        Convert RGB pixel color into a musical note.
+
+        HSV mapping:
+            Hue        -> pitch
+            Saturation -> amplitude
+            Brightness -> octave
+
+        White pixels return None (silence).
+        """
+
+        # Normalize RGB values
+        r, g, b = r / 255, g / 255, b / 255
+
+        # Convert RGB to HSV
+        hue, saturation, brightness = colorsys.rgb_to_hsv(
+            r, g, b
+        )
+
+        # Detect white / near-white pixels
+        if (
+            saturation <= self.white_saturation_threshold
+            and brightness >= self.white_brightness_threshold
+        ):
+            return None
+
+        # Map hue to pentatonic scale
+        scale_index = min(
+            int(hue * len(self.scale)),
+            len(self.scale) - 1
+        )
+
+        # Map brightness to octave
+        octave = min(int(brightness * 3), 2)
+
+        # MIDI C4 = 60
+        midi_note = (
+            60
+            + self.scale[scale_index]
+            + octave * 12
+        )
+
+        # Map saturation to amplitude
+        amplitude = 0.05 + saturation * 0.35
+
+        return midi_note, amplitude
+
+    def play_pixel(self, r, g, b):
+        """
+        Convert pixel color into a note and send it
+        to the synthesizer through OSC.
+        """
+
+        result = self.color_to_note(r, g, b)
+
+        # White pixel: silence
+        if result is None:
+            return
+
+        midi_note, amplitude = result
+
+        self.synth.send_message(
+            "/note",
+            [
+                midi_note,
+                self.note_duration,
+                amplitude
+            ]
+        )
+
+    # ==================================================
+    # 3. MOUSE CALLBACK
     # ==================================================
 
     def mouse_callback(self, event, x, y, flags, param):
 
+        # Left click: start a new tracking stroke
         if event == cv2.EVENT_LBUTTONDOWN:
-            # print(f"Mouse clicked at ({x}, {y})")
-            self.synth.send_message("/melody", ["A#5", "C6", "G#5", "D#6", "D#5"])
+
+            if (
+                0 <= x < self.width
+                and 0 <= y < self.height
+            ):
+
+                self.last_position = None
+                self.track_pixels(x, y)
+
             return
 
         # Mouse scrolling: video navigation
@@ -175,7 +285,7 @@ class VisualInstrument:
             self.track_pixels(x, y)
 
     # ==================================================
-    # 3. PIXEL INTERPOLATION
+    # 4. PIXEL INTERPOLATION
     # ==================================================
 
     def interpolate_points(self, p1, p2):
@@ -195,15 +305,20 @@ class VisualInstrument:
 
         for i in range(1, distance + 1):
 
-            x = round(x1 + (x2 - x1) * i / distance)
-            y = round(y1 + (y2 - y1) * i / distance)
+            x = round(
+                x1 + (x2 - x1) * i / distance
+            )
+
+            y = round(
+                y1 + (y2 - y1) * i / distance
+            )
 
             points.append((x, y))
 
         return points
 
     # ==================================================
-    # 4. PIXEL TRACKING
+    # 5. PIXEL TRACKING AND MUSIC GENERATION
     # ==================================================
 
     def track_pixels(self, x, y):
@@ -234,21 +349,34 @@ class VisualInstrument:
         frame_number = self.current_frame
 
         if self.is_video:
+
             video_timestamp_ms = (
                 frame_number / self.fps
             ) * 1000.0
+
         else:
+
             video_timestamp_ms = None
 
-        # Record pixel information
-        for px, py in points:
+        # Process interpolated pixels
+        for i, (px, py) in enumerate(points):
 
+            # OpenCV uses BGR, not RGB
             b, g, r = self.image[py, px]
 
+            r = int(r)
+            g = int(g)
+            b = int(b)
+
+            # Play every 8th interpolated pixel
+            if i % self.pixel_step == 0:
+
+                self.play_pixel(r, g, b)
+
+            # Record every pixel, including white ones
             self.events.append({
 
                 "timestamp": timestamp,
-
                 "video_timestamp_ms": video_timestamp_ms,
 
                 "frame_number": frame_number,
@@ -256,9 +384,9 @@ class VisualInstrument:
                 "x": px,
                 "y": py,
 
-                "r": int(r),
-                "g": int(g),
-                "b": int(b)
+                "r": r,
+                "g": g,
+                "b": b
 
             })
 
@@ -273,7 +401,7 @@ class VisualInstrument:
         self.last_position = (x, y)
 
     # ==================================================
-    # 5. VIDEO NAVIGATION
+    # 6. VIDEO NAVIGATION
     # ==================================================
 
     def navigate_video(self):
@@ -306,7 +434,7 @@ class VisualInstrument:
             self.requested_frame = self.current_frame
 
     # ==================================================
-    # 6. VISUAL EFFECTS
+    # 7. VISUAL EFFECTS
     # ==================================================
 
     def render_effects(self):
@@ -375,7 +503,7 @@ class VisualInstrument:
         return display
 
     # ==================================================
-    # 7. DISPLAY
+    # 8. DISPLAY
     # ==================================================
 
     def display(self):
@@ -402,7 +530,7 @@ class VisualInstrument:
         cv2.imshow(self.window, display)
 
     # ==================================================
-    # 8. MAIN APPLICATION LOOP
+    # 9. MAIN APPLICATION LOOP
     # ==================================================
 
     def run(self):
@@ -424,7 +552,9 @@ class VisualInstrument:
 
             print("\nVisual Instrument started")
             print("Move your mouse to track pixels")
+            print("Click to start a new tracking stroke")
             print("Scroll to navigate video frames")
+            print("White pixels produce silence")
             print("Press Q or ESC to exit\n")
 
             while self.running:
@@ -443,6 +573,7 @@ class VisualInstrument:
                     ord("Q"),
                     27
                 ):
+
                     self.running = False
 
                 # Detect window closure
@@ -468,7 +599,7 @@ class VisualInstrument:
             self.close()
 
     # ==================================================
-    # 9. EXPORT EVENTS
+    # 10. EXPORT EVENTS
     # ==================================================
 
     def get_events(self):
@@ -476,7 +607,7 @@ class VisualInstrument:
         return pd.DataFrame(self.events)
 
     # ==================================================
-    # 10. CLEANUP
+    # 11. CLEANUP
     # ==================================================
 
     def close(self):
@@ -496,21 +627,31 @@ class VisualInstrument:
             f"Captured {len(self.events)} pixel events."
         )
 
+
+# ==================================================
+# 12. MAIN
+# ==================================================
+
 def main():
+
     import argparse
 
     parser = argparse.ArgumentParser(
         description="Visual Instrument"
     )
+
     parser.add_argument(
         "file",
         help="Path to an image or video file"
     )
+
     args = parser.parse_args()
-   
+
     instrument = VisualInstrument(args.file)
+
     instrument.run()
 
 
 if __name__ == "__main__":
+
     main()
