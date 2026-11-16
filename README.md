@@ -7,6 +7,8 @@ Try
 3. Open image.png
 4. Explore with mouse cursor
 
-![Immersion](https://www.youtube.com/watch?v=2nzAHdqu2QI)
+Consider for exhibit rooms
+
+[![Immersion](https://img.youtube.com/vi/2nzAHdqu2QI/0.jpg)](https://www.youtube.com/watch?v=2nzAHdqu2QI)
 
 
