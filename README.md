@@ -1,5 +1,7 @@
 ![Image description](./team.png)
 
+[![Presentation](https://img.youtube.com/vi/l61IMKNCr0/0.jpg)](https://www.youtube.com/watch?v=vl61IMKNCr0)
+
 Try
 
 1. pip install -r requirements.txt
