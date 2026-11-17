@@ -1,6 +1,10 @@
 ![Image description](./team.png)
 
-[![Presentation](https://img.youtube.com/vi/vl61IMKNCr0/0.jpg)](https://www.youtube.com/watch?v=vl61IMKNCr0)
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=vl61IMKNCr0">
+    <img src="https://img.youtube.com/vi/vl61IMKNCr0/0.jpg" alt="Presentation" />
+  </a>
+</p>
 
 Try
 
@@ -11,6 +15,10 @@ Try
 
 Consider for exhibit rooms
 
-[![Immersion](https://img.youtube.com/vi/2nzAHdqu2QI/0.jpg)](https://www.youtube.com/watch?v=2nzAHdqu2QI)
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=2nzAHdqu2QI">
+    <img src="https://img.youtube.com/vi/2nzAHdqu2QI/0.jpg" alt="Immersion" />
+  </a>
+</p>
 
 
