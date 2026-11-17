@@ -16,6 +16,8 @@ Try
 Consider for exhibit rooms
 
 <p align="center">
+  Consider for exhibit rooms
+  </br>
   <a href="https://www.youtube.com/watch?v=2nzAHdqu2QI">
     <img src="https://img.youtube.com/vi/2nzAHdqu2QI/1.jpg" alt="Immersion" />
   </a>
