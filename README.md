@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=vl61IMKNCr0">
-    <img src="https://img.youtube.com/vi/vl61IMKNCr0/0.jpg" alt="Presentation" />
+    <img src="https://img.youtube.com/vi/vl61IMKNCr0/1.jpg" alt="Presentation" />
   </a>
 </p>
 
@@ -17,7 +17,7 @@ Consider for exhibit rooms
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=2nzAHdqu2QI">
-    <img src="https://img.youtube.com/vi/2nzAHdqu2QI/0.jpg" alt="Immersion" />
+    <img src="https://img.youtube.com/vi/2nzAHdqu2QI/1.jpg" alt="Immersion" />
   </a>
 </p>
 
